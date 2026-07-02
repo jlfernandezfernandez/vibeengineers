@@ -1,26 +1,53 @@
 ---
+import { getCollection } from 'astro:content';
+import ArticleList from '../components/ArticleList.astro';
+import FeaturedArticle from '../components/FeaturedArticle.astro';
+import HomeActivity from '../components/HomeActivity.astro';
+import HomeHero from '../components/HomeHero.astro';
+import TopicQueue from '../components/TopicQueue.astro';
+import Page from '../layouts/Page.astro';
+import { BASE, SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+
+const RECENT_COUNT = 4;
+
+const posts = (await getCollection('blog')).sort(
+	(a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+);
+const [latest, ...rest] = posts;
+const recent = rest.slice(0, RECENT_COUNT);
 ---
 
-<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ctx</title>
-  </head>
-  <body>
-    <h1>ctx</h1>
-    <p>Backend: <span id="backend-status">comprobando…</span></p>
-    <script>
-      const el = document.getElementById('backend-status')!;
-      const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
-      try {
-        const res = await fetch(`${apiUrl}/health`);
-        const data = await res.json();
-        el.textContent = data.status;
-      } catch {
-        el.textContent = 'no disponible';
-      }
-    </script>
-  </body>
-</html>
+<Page title={SITE_TITLE} description={SITE_DESCRIPTION}>
+	<HomeHero />
+	{latest && <FeaturedArticle post={latest} />}
+	{
+		recent.length > 0 && (
+			<section class="recent">
+				<h2>Anteriores</h2>
+				<ArticleList posts={recent} />
+			</section>
+		)
+	}
+	{rest.length > 0 && <a class="all" href={`${BASE}/articles/`}>ver todos los artículos →</a>}
+	<TopicQueue />
+	<HomeActivity posts={posts} />
+</Page>
+
+<style>
+	.recent {
+		margin-top: 3em;
+	}
+	.recent h2 {
+		margin: 0 0 1em 0;
+		font-size: 0.85em;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: rgb(var(--gray));
+	}
+	.all {
+		display: inline-block;
+		margin-top: 1em;
+		font-family: var(--font-mono);
+		font-weight: 500;
+	}
+</style>
