@@ -1,0 +1,26 @@
+---
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ctx</title>
+  </head>
+  <body>
+    <h1>ctx</h1>
+    <p>Backend: <span id="backend-status">comprobando…</span></p>
+    <script>
+      const el = document.getElementById('backend-status')!;
+      const apiUrl = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
+      try {
+        const res = await fetch(`${apiUrl}/health`);
+        const data = await res.json();
+        el.textContent = data.status;
+      } catch {
+        el.textContent = 'no disponible';
+      }
+    </script>
+  </body>
+</html>
