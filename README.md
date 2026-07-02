@@ -1,8 +1,6 @@
 # Ctx
 
-**https://jlfernandezfernandez.github.io/ctx/**
-
-[![CI](https://github.com/jlfernandezfernandez/ctx/actions/workflows/ci.yml/badge.svg)](https://github.com/jlfernandezfernandez/ctx/actions/workflows/ci.yml) [![Deploy site](https://github.com/jlfernandezfernandez/ctx/actions/workflows/deploy.yml/badge.svg)](https://github.com/jlfernandezfernandez/ctx/actions/workflows/deploy.yml)
+[![CI](https://github.com/jlfernandezfernandez/ctx/actions/workflows/ci.yml/badge.svg)](https://github.com/jlfernandezfernandez/ctx/actions/workflows/ci.yml)
 
 Una píldora técnica al día. Para vibe coders que quieren entender qué pasa por debajo.
 
@@ -35,9 +33,9 @@ El resto no son agentes: `pipeline.py` coordina rondas y GitHub; `article.py` va
 ## Estructura
 
 - `generator/` — generador Python (LLM agnóstico vía API OpenAI-compatible)
-- `site/` — web Astro (GitHub Pages)
-- `.github/workflows/` — `triage-topic` (cura propuestas), `publish` (pipeline editorial), `deploy` (Pages), `ci` (tests y build)
-- `site/src/data/tags.json` — taxonomía canónica: el writer reutiliza tags existentes siempre que encajen y el pipeline añade a la misma PR un tag nuevo solo cuando hace falta
+- `frontend/` — web Astro
+- `.github/workflows/` — `triage-topic` (cura propuestas), `publish` (pipeline editorial), `ci` (tests y build)
+- `frontend/src/data/tags.json` — taxonomía canónica: el writer reutiliza tags existentes siempre que encajen y el pipeline añade a la misma PR un tag nuevo solo cuando hace falta
 
 Cada artículo lleva entre uno y tres tags que representen sus ejes centrales. Un tag solo se incluye
 si alguien interesado en él agradecería encontrar el artículo; la taxonomía puede crecer como máximo
@@ -74,19 +72,31 @@ Cada agente apunta a un provider y modelo. El writer usa dos capabilities: chat 
 
 ## Desarrollo local
 
-Requiere [Node.js](https://nodejs.org) y [uv](https://docs.astral.sh/uv/) (`brew install uv`).
+Con [Docker](https://docs.docker.com/get-docker/):
 
-### Generador (Python)
+```bash
+cp .env.example .env          # rellena GARAGE_RPC_SECRET y GARAGE_ADMIN_TOKEN: openssl rand -hex 32
+docker compose up --build      # postgres, garage, backend (:8000), frontend (:4321)
+```
+
+- Frontend: http://localhost:4321
+- Backend `/health`: http://localhost:8000/health
+
+Garage arranca con el compose; la creación del bucket y keys de S3 se configura cuando el backend integre almacenamiento.
+
+### Sin Docker
+
+Generador (Python, requiere [uv](https://docs.astral.sh/uv/), `brew install uv`):
 
 ```bash
 cd generator
 uv run --extra dev pytest
 ```
 
-### Web (Astro)
+Web (Astro, requiere [Node.js](https://nodejs.org) ≥ 22.12):
 
 ```bash
-cd site
+cd frontend
 npm install
 npm run dev
 ```
