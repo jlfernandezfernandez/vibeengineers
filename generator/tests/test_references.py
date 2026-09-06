@@ -1,5 +1,7 @@
 """The reviewer receives real source excerpts, never a guessed link verdict."""
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -40,6 +42,26 @@ url = "https://example.com/not-a-source"
     assert pool.call_args.kwargs["server_hostname"] == "docs.example.com"
 
 
+def test_indented_and_long_closing_fenced_code_do_not_consume_source_limit(network):
+    _, pool = network
+    body = "\n".join(
+        [f'    example = "https://example.com/code-{index}"' for index in range(5)]
+        + [
+            "~~~python",
+            'example = "https://example.com/fenced"',
+            "~~~~",
+            "[Actual source](https://docs.example.com/actual)",
+        ]
+    )
+
+    context = reference_context(body)
+
+    assert "Demand limits delivery." in context
+    assert "code-" not in context and "/fenced" not in context
+    assert pool.return_value.__enter__.return_value.request.call_count == 1
+    assert pool.return_value.__enter__.return_value.request.call_args.args[1] == "/actual"
+
+
 @pytest.mark.parametrize("url", ["https://127.0.0.1/x", "https://[::1]/x",
                                "https://user:password@docs.example.com/x",
                                "http://docs.example.com/x", "https://docs.example.com:8080/x"])
@@ -74,6 +96,47 @@ def test_fetch_failure_does_not_abort_editorial_review(network):
     llm.generate_structured.return_value = {"issues": []}
     assert review_article(llm, "Queues", "[Source](https://docs.example.com/queues)") == {"issues": []}
     assert "No verificable" in llm.generate_structured.call_args.args[1]
+
+
+def test_reference_deadline_includes_dns_resolution(network):
+    dns, pool = network
+    dns.side_effect = lambda *args, **kwargs: (
+        time.sleep(1), [(2, 1, 6, "", ("93.184.216.34", 443))]
+    )[1]
+
+    started = time.monotonic()
+    with patch("article_generator.references.TIMEOUT_SECONDS", 0.05):
+        context = reference_context("[Source](https://docs.example.com/queues)")
+
+    assert time.monotonic() - started < 0.5
+    assert "No verificable" in context
+    pool.assert_not_called()
+
+
+def test_reference_deadline_includes_response_headers(network):
+    _, pool = network
+    pool.return_value.__enter__.return_value.request.side_effect = (
+        lambda *args, **kwargs: (time.sleep(1), response())[1]
+    )
+
+    started = time.monotonic()
+    with patch("article_generator.references.TIMEOUT_SECONDS", 0.05):
+        context = reference_context("[Source](https://docs.example.com/queues)")
+
+    assert time.monotonic() - started < 0.5
+    assert "No verificable" in context
+
+
+def test_reference_fetch_is_unavailable_outside_main_thread(network):
+    _, pool = network
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        context = executor.submit(
+            reference_context, "[Source](https://docs.example.com/queues)"
+        ).result()
+
+    assert "No verificable" in context
+    pool.assert_not_called()
 
 
 def test_bounded_sources_and_excerpt_remove_script_content(network):

@@ -1,9 +1,11 @@
 """Fetch small public source excerpts; editorial judgment remains with the reviewer."""
+from contextlib import contextmanager
 import ipaddress
 import json
 import re
+import signal
 import socket
-import time
+import threading
 from html.parser import HTMLParser
 from urllib.parse import urlsplit
 
@@ -15,6 +17,51 @@ MAX_SOURCES = 5
 MAX_BYTES = 200_000
 MAX_EXCERPT = 2_500
 TIMEOUT_SECONDS = 5
+
+
+def _without_code_blocks(body: str) -> str:
+    prose = []
+    fence_char = None
+    fence_length = 0
+    for line in body.splitlines(keepends=True):
+        candidate = line.rstrip("\r\n")
+        if fence_char:
+            if re.fullmatch(
+                rf" {{0,3}}{re.escape(fence_char)}{{{fence_length},}}[ \t]*", candidate
+            ):
+                fence_char = None
+            continue
+        fence = re.match(r"^ {0,3}(`{3,}|~{3,})", candidate)
+        if fence:
+            fence_char = fence.group(1)[0]
+            fence_length = len(fence.group(1))
+        elif not re.match(r"^(?: {4,}|\t)", line):
+            prose.append(line)
+    return "".join(prose)
+
+
+@contextmanager
+def _wall_clock_deadline(seconds: float):
+    sigalrm = getattr(signal, "SIGALRM", None)
+    setitimer = getattr(signal, "setitimer", None)
+    itimer_real = getattr(signal, "ITIMER_REAL", None)
+    if (threading.current_thread() is not threading.main_thread() or sigalrm is None
+            or not callable(setitimer) or itimer_real is None):
+        raise ValueError("límite temporal no disponible en este contexto")
+
+    def timeout_handler(signum, frame):
+        raise TimeoutError("tiempo total de descarga agotado")
+
+    previous_handler = signal.getsignal(sigalrm)
+    signal.signal(sigalrm, timeout_handler)
+    previous_timer = setitimer(itimer_real, seconds)
+    try:
+        yield
+    finally:
+        setitimer(itimer_real, 0)
+        signal.signal(sigalrm, previous_handler)
+        if previous_timer != (0.0, 0.0):
+            setitimer(itimer_real, *previous_timer)
 
 
 class _VisibleText(HTMLParser):
@@ -38,7 +85,7 @@ class _VisibleText(HTMLParser):
 
 def _source_urls(body: str) -> list[str]:
     # Sources in prose/reference definitions count; example URLs inside code do not.
-    prose = re.sub(r"(?ms)^\s*(`{3,}|~{3,})[^\n]*\n.*?^\s*\1\s*$", "", body)
+    prose = _without_code_blocks(body)
     prose = re.sub(r"`+[^`]*`+", "", prose)
     urls = re.findall(r"https?://[^\s<>\"\)]+", prose)
     return list(dict.fromkeys(url.rstrip(".,;").partition("#")[0] for url in urls))
@@ -60,45 +107,45 @@ def _public_destination(url: str) -> tuple[str, str, str]:
 
 
 def _excerpt(url: str) -> str:
-    hostname, address, target = _public_destination(url)
-    # Pin the validated address while preserving TLS SNI/certificate checks.
-    # No credentials, environment proxies, redirects or retries on source requests.
-    with HTTPSConnectionPool(address, server_hostname=hostname, assert_hostname=hostname,
-                             cert_reqs="CERT_REQUIRED", ca_certs=where()) as pool:
-        response = pool.request(
-            "GET", target, headers={"Host": hostname, "Accept-Encoding": "identity",
-                                    "User-Agent": "Ctx-reference-review/1.0"},
-            assert_same_host=False, redirect=False, retries=False,
-            timeout=TIMEOUT_SECONDS, preload_content=False,
-        )
-        try:
-            if response.status != 200:
-                raise ValueError(f"HTTP {response.status}")
-            content_type = response.headers.get("Content-Type", "").lower()
-            if not any(kind in content_type for kind in ("text/html", "text/plain")):
-                raise ValueError("formato no compatible; se lee HTML o texto")
-            if response.headers.get("Content-Encoding", "identity").lower() != "identity":
-                raise ValueError("respuesta comprimida no admitida")
-            chunks = bytearray()
-            deadline = time.monotonic() + TIMEOUT_SECONDS
-            while len(chunks) < MAX_BYTES:
-                if time.monotonic() >= deadline:
-                    raise TimeoutError("tiempo de lectura agotado")
-                chunk = response.read1(min(8192, MAX_BYTES - len(chunks)), decode_content=False)
-                if not chunk:
-                    break
-                chunks.extend(chunk)
-            text = chunks.decode("utf-8", errors="replace")
-            if "text/html" in content_type:
-                parser = _VisibleText()
-                parser.feed(text)
-                text = " ".join(parser.parts)
-            excerpt = " ".join(text.split())[:MAX_EXCERPT]
-            if not excerpt:
-                raise ValueError("sin texto legible")
-            return excerpt
-        finally:
-            response.close()
+    with _wall_clock_deadline(TIMEOUT_SECONDS):
+        hostname, address, target = _public_destination(url)
+        # Pin the validated address while preserving TLS SNI/certificate checks.
+        # No credentials, environment proxies, redirects or retries on source requests.
+        with HTTPSConnectionPool(address, server_hostname=hostname, assert_hostname=hostname,
+                                 cert_reqs="CERT_REQUIRED", ca_certs=where()) as pool:
+            response = pool.request(
+                "GET", target, headers={"Host": hostname, "Accept-Encoding": "identity",
+                                        "User-Agent": "Ctx-reference-review/1.0"},
+                assert_same_host=False, redirect=False, retries=False,
+                timeout=TIMEOUT_SECONDS, preload_content=False,
+            )
+            try:
+                if response.status != 200:
+                    raise ValueError(f"HTTP {response.status}")
+                content_type = response.headers.get("Content-Type", "").lower()
+                if not any(kind in content_type for kind in ("text/html", "text/plain")):
+                    raise ValueError("formato no compatible; se lee HTML o texto")
+                if response.headers.get("Content-Encoding", "identity").lower() != "identity":
+                    raise ValueError("respuesta comprimida no admitida")
+                chunks = bytearray()
+                while len(chunks) < MAX_BYTES:
+                    chunk = response.read1(
+                        min(8192, MAX_BYTES - len(chunks)), decode_content=False
+                    )
+                    if not chunk:
+                        break
+                    chunks.extend(chunk)
+                text = chunks.decode("utf-8", errors="replace")
+                if "text/html" in content_type:
+                    parser = _VisibleText()
+                    parser.feed(text)
+                    text = " ".join(parser.parts)
+                excerpt = " ".join(text.split())[:MAX_EXCERPT]
+                if not excerpt:
+                    raise ValueError("sin texto legible")
+                return excerpt
+            finally:
+                response.close()
 
 
 def reference_context(body: str) -> str:
