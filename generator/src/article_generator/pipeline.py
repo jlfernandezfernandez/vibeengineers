@@ -31,7 +31,7 @@ from .github import (
 from .llm import LLMClient, LLMError
 
 
-TAGS_FILE = Path("site/src/data/tags.json")
+TAGS_FILE = Path("frontend/src/data/tags.json")
 
 
 def _client(config: AppConfig, name: str) -> LLMClient:
@@ -73,7 +73,7 @@ def _bullets(items: list[str]) -> str:
 
 
 def _publish_url(site_url: str, path: str) -> str:
-    slug = path.removeprefix("site/src/content/blog/").removesuffix(".md")
+    slug = path.removeprefix("frontend/src/content/blog/").removesuffix(".md")
     return f"{site_url}/blog/{slug}/" if site_url else slug
 
 
@@ -113,7 +113,7 @@ def _open_draft(env: dict, github: GitHubClient) -> int | None:
     )
     url, pr_number = github.open_pr(
         branch=f"article/issue-{issue['number']}",
-        path=f"site/src/content/blog/{date.today().isoformat()}-{slugify(draft.title)}.md",
+        path=f"frontend/src/content/blog/{date.today().isoformat()}-{slugify(draft.title)}.md",
         content=content,
         title=f"article: {draft.title}",
         body=f"Closes #{issue['number']}",

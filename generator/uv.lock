@@ -8,6 +8,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "requests" },
+    { name = "urllib3" },
 ]
 
 [package.optional-dependencies]
@@ -21,6 +22,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "requests", specifier = ">=2.31" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
+    { name = "urllib3", specifier = ">=2" },
 ]
 provides-extras = ["dev"]
 

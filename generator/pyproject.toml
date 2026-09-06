@@ -3,7 +3,7 @@ name = "article-generator"
 version = "0.1.0"
 description = "Generates the daily deep-dive article from the topic queue"
 requires-python = ">=3.11"
-dependencies = ["requests>=2.31"]
+dependencies = ["requests>=2.31", "urllib3>=2"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.8"]

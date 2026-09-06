@@ -30,6 +30,14 @@ Cada agente tiene un único system prompt estático en `generator/src/article_ge
 
 El resto no son agentes: `pipeline.py` coordina rondas y GitHub; `article.py` valida Markdown, frontmatter y el máximo de tags.
 
+El reviewer recibe extractos de hasta cinco referencias HTTPS del artículo.
+`references.py` descarga un máximo de 200 KB por fuente y entrega hasta 2.500
+caracteres de texto, con conexión y lectura limitadas. No sigue redirecciones
+ni accede a direcciones privadas. Las fuentes inaccesibles se indican como
+«No verificable»; el reviewer conserva la decisión editorial y puede pedir
+evidencia. Un extracto parcial no demuestra por sí solo que una afirmación sea
+correcta o falsa. No hay un agente adicional ni un buscador externo.
+
 ## Estructura
 
 - `generator/` — generador Python (LLM agnóstico vía API OpenAI-compatible)
@@ -100,6 +108,12 @@ cd frontend
 npm install
 npm run dev
 ```
+
+GitHub Pages compila `frontend/` con `SITE_URL=https://jlfernandezfernandez.github.io/ctx`.
+La misma variable fija el origen canónico y el prefijo `/ctx` de enlaces y recursos.
+En local se omite para servir desde `http://localhost:4321/`; en otro alojamiento
+se usa su URL pública completa. El generador escribe artículos y tags en
+`frontend/src/`, que es también la ruta que consume la web.
 
 ## Contribuir
 
