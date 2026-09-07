@@ -85,7 +85,7 @@ def test_pipeline_opens_draft_pr_before_review_and_merges(
         "head": {"ref": "article/issue-5"},
         "title": "article: Project Reactor y backpressure",
     }
-    github.get_article_path.return_value = "site/src/content/blog/reactor.md"
+    github.get_article_path.return_value = "frontend/src/content/blog/reactor.md"
     github.read_file.return_value = (
         '---\ntitle: "Project Reactor y backpressure"\ntags: ["auth"]\nwriter: "writer-m"\n---\n\n'
         "## Contexto\n\nArtículo."
@@ -95,10 +95,11 @@ def test_pipeline_opens_draft_pr_before_review_and_merges(
     assert run(env()) == 0
 
     github.open_pr.assert_called_once()
+    assert github.open_pr.call_args.kwargs["path"].startswith("frontend/src/content/blog/")
     created = github.open_pr.call_args.kwargs["content"]
     assert 'tags: ["auth"]' in created
     taxonomy_update = next(
-        call for call in github.update_file.call_args_list if call.args[1] == "site/src/data/tags.json"
+        call for call in github.update_file.call_args_list if call.args[1] == "frontend/src/data/tags.json"
     )
     assert taxonomy_update.args[2] == '[\n  "auth",\n  "reactive"\n]\n'
     calls = [method[0] for method in github.method_calls]
@@ -123,7 +124,7 @@ def test_pipeline_does_not_update_taxonomy_when_writer_reuses_tag(
         "head": {"ref": "article/issue-5"},
         "title": "article: Project Reactor",
     }
-    github.get_article_path.return_value = "site/src/content/blog/reactor.md"
+    github.get_article_path.return_value = "frontend/src/content/blog/reactor.md"
     github.read_file.return_value = (
         '---\ntitle: "Project Reactor"\ntags: ["reactive"]\nwriter: "writer-m"\n---\n\n'
         "## Contexto\n\nArtículo."
@@ -134,7 +135,7 @@ def test_pipeline_does_not_update_taxonomy_when_writer_reuses_tag(
     assert run(env()) == 0
 
     taxonomy_updates = [
-        call for call in github.update_file.call_args_list if call.args[1] == "site/src/data/tags.json"
+        call for call in github.update_file.call_args_list if call.args[1] == "frontend/src/data/tags.json"
     ]
     assert taxonomy_updates == []
 

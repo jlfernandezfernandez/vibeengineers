@@ -173,7 +173,7 @@ def test_open_pr_creates_branch_file_and_pr():
     c = pr_client()
     url, number = c.open_pr(
         branch="article/issue-5",
-        path="site/src/content/blog/2026-06-11-tema.md",
+        path="frontend/src/content/blog/2026-06-11-tema.md",
         content="---\ntitle: x\n---\n\ncuerpo\n",
         title="article: tema",
         body="Closes #5",
@@ -245,10 +245,10 @@ def test_open_article_issue_numbers_empty_when_no_prs():
 
 def test_get_article_path_finds_md():
     c = make_client([
-        {"filename": "site/src/content/blog/2026-06-11-tema.md", "status": "added"},
+        {"filename": "frontend/src/content/blog/2026-06-11-tema.md", "status": "added"},
         {"filename": "README.md", "status": "modified"},
     ])
-    assert c.get_article_path(9) == "site/src/content/blog/2026-06-11-tema.md"
+    assert c.get_article_path(9) == "frontend/src/content/blog/2026-06-11-tema.md"
 
 
 def test_get_article_path_raises_when_no_md():
@@ -260,7 +260,7 @@ def test_get_article_path_raises_when_no_md():
 def test_read_file_decodes_content():
     content = base64.b64encode(b"hello world").decode()
     c = make_client({"content": content})
-    assert c.read_file("main", "site/src/content/blog/test.md") == "hello world"
+    assert c.read_file("main", "frontend/src/content/blog/test.md") == "hello world"
 
 
 def test_merge_pr_squashes():
@@ -306,7 +306,7 @@ def test_merge_pr_failure_does_not_delete_branch():
 
 def test_update_file_reuses_existing_sha():
     c = make_client({"sha": "oldsha"})
-    c.update_file("article/issue-5", "site/src/content/blog/file.md", "new content", "fix: review")
+    c.update_file("article/issue-5", "frontend/src/content/blog/file.md", "new content", "fix: review")
     sent = c.session.put.call_args.kwargs["json"]
     assert sent["sha"] == "oldsha"
     assert base64.b64decode(sent["content"]).decode() == "new content"

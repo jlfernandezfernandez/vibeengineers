@@ -24,7 +24,7 @@ def env(max_rounds="2"):
 
 FRONTMATTER = '---\ntitle: "Vistas"\ntags: ["snowflake"]\nwriter: "writer-m"\n---\n\n'
 ARTICLE_BODY = "## Contexto\n\nContenido técnico."
-PATH = "site/src/content/blog/vistas.md"
+PATH = "frontend/src/content/blog/vistas.md"
 APPROVED = {"issues": []}
 
 

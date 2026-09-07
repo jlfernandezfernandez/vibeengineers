@@ -48,7 +48,7 @@ class GitHubClient:
     def article_exists_for_date(self, date_prefix: str) -> bool:
         """Return True if an article file for the given date already exists on main."""
         resp = self.session.get(
-            f"{self.base}/contents/site/src/content/blog",
+            f"{self.base}/contents/frontend/src/content/blog",
             params={"ref": "main", "per_page": 100},
         )
         if resp.status_code == 404:
@@ -188,11 +188,11 @@ class GitHubClient:
         return resp.json()
 
     def get_article_path(self, pr_number: int) -> str:
-        """Find the .md file added by this PR under site/src/content/blog/."""
+        """Find the .md file added by this PR under frontend/src/content/blog/."""
         resp = self.session.get(f"{self.base}/pulls/{pr_number}/files")
         self._require(resp, (200,), f"list files in PR #{pr_number}")
         for f in resp.json():
-            if f["filename"].startswith("site/src/content/blog/") and f["filename"].endswith(".md"):
+            if f["filename"].startswith("frontend/src/content/blog/") and f["filename"].endswith(".md"):
                 return f["filename"]
         raise GitHubError(f"No article .md found in PR #{pr_number}")
 

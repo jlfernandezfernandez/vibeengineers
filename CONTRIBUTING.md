@@ -16,7 +16,7 @@ Ver [README.md → Desarrollo local](README.md#desarrollo-local) para el setup.
 
 1. Haz fork y abre una PR contra `main`.
 2. Generador (`generator/`): Python, TDD. Ejecuta `pytest`; los tests deben pasar.
-3. Web (`site/`): Astro. `npm run build` debe compilar.
+3. Web (`frontend/`): Astro. `npm run build` debe compilar.
 4. Las PRs de forks **no** reciben secrets: no puedes (ni necesitas) probar contra el LLM real. Mockea como hacen los tests existentes.
 
 Los system prompts viven como texto estático en `generator/src/article_generator/system_prompts/`.
@@ -28,5 +28,5 @@ uno de esos ejes.
 ## Lo que no se puede hacer
 
 - Commitear keys o `.env` (está en `.gitignore`; los secrets viven en GitHub Actions Secrets).
-- Editar artículos publicados en `site/src/content/blog/` a mano salvo errata clara.
+- Editar artículos publicados en `frontend/src/content/blog/` a mano salvo errata clara.
 - Lanzar workflows: solo colaboradores con permiso de escritura pueden ejecutar `workflow_dispatch`.

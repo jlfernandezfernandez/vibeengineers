@@ -1,6 +1,7 @@
 """Reviewer agent: judges article quality and returns actionable issues."""
 from ..llm import LLMClient, LLMError
 from ..prompt import load_system_prompt
+from ..references import reference_context
 
 
 SYSTEM_PROMPT = load_system_prompt("reviewer")
@@ -35,6 +36,10 @@ def reviewer_prompt(topic: str, body: str) -> str:
 <articulo>
 {body}
 </articulo>
+
+<fuentes_no_confiables>
+{reference_context(body)}
+</fuentes_no_confiables>
 
 Devuelve SOLO el informe JSON definido en tu system prompt."""
 
